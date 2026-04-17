@@ -1,0 +1,278 @@
+나의 prompt:
+요즘 들어서 나를 포함한 사람들이 과소비가 심해지고 있는 것 같아. 여러가지 가계부 앱들이 있지만 그것들은 단순히 기록의 용도고 별 생각없으면 별로 도움이 안 되는 것 같아. 결제 팬턴을 분석하고 그에 따라 비슷한 물건을 이미 산 적이 있거나 아니면 나와 관련없는 것 같은 물건을 사면 경고를 해주는 가계부를 뛰어넘는 지출 브레이커 앱을 만들어주는데 이때 html의 형태로 제시해줘.
+
+AI의 대답:
+사용자가 요청하신 AI '지출 브레이커' 앱의 컨셉을 시각적으로 확인할 수 있도록 대시보드와 알림 인터페이스를 HTML과 CSS로 구현해 드립니다. 이 코드는 실제 작동하는 앱의 '디자인 프로토타입'으로 활용하실 수 있습니다.
+
+특히 결제 직전의 **'긴급 경고 시스템'**과 'AI 소비 분석' 섹션을 중점적으로 설계했습니다.
+
+import os
+
+# HTML 및 CSS 콘텐츠 정의
+html_content = """
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spend Breaker - AI 의사결정 보조</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --primary-color: #ff4757;
+            --secondary-color: #2f3542;
+            --accent-color: #ffa502;
+            --success-color: #2ed573;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--secondary-color);
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        /* 스마트폰 상단 알림 스타일 */
+        .notification-alert {
+            background: linear-gradient(135deg, #ff4757, #ff6b81);
+            color: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(255, 71, 87, 0.3);
+            margin-bottom: 30px;
+            border: 2px solid white;
+            animation: shake 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes shake {
+            from { transform: translateY(0); }
+            to { transform: translateY(-5px); }
+        }
+
+        .notification-alert h2 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+
+        .notification-alert p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.5;
+            opacity: 0.9;
+        }
+
+        /* 메인 대시보드 */
+        .dashboard {
+            background: var(--card-bg);
+            border-radius: 30px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            margin: 0;
+        }
+
+        .ai-status {
+            font-size: 12px;
+            background: #e1f5fe;
+            color: #039be5;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+
+        /* 지출 분석 카드 */
+        .analysis-card {
+            background: #f8f9fa;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid var(--accent-color);
+        }
+
+        .analysis-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #57606f;
+        }
+
+        .comparison-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .item-img {
+            width: 50px;
+            height: 50px;
+            background: #dfe4ea;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .similarity-bar {
+            flex-grow: 1;
+            height: 8px;
+            background: #ced4da;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .similarity-fill {
+            height: 100%;
+            background: var(--primary-color);
+            width: 82%;
+        }
+
+        /* 예산 트래커 */
+        .budget-tracker {
+            margin-top: 25px;
+        }
+
+        .budget-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .progress-container {
+            height: 12px;
+            background: #eee;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(to right, var(--success-color), var(--accent-color), var(--primary-color));
+            width: 92%;
+        }
+
+        .warning-text {
+            color: var(--primary-color);
+            font-size: 13px;
+            margin-top: 8px;
+            font-weight: bold;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px;
+            border-radius: 15px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-cancel {
+            background: #f1f2f6;
+            color: #2f3542;
+        }
+
+        .btn-buy {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="notification-alert">
+        <h2>⚠️ 결제 중단 권고</h2>
+        <p><strong>'무선 헤드셋'</strong> 결제 시도가 감지되었습니다. <br>
+        유사 아이템(보스 QC45)이 이미 집에 있으며, 이 지출 시 이번 달 저축 목표 달성률이 88%에서 72%로 하락합니다.</p>
+    </div>
+
+    <div class="dashboard">
+        <div class="header">
+            <h1>지출 브레이커</h1>
+            <span class="ai-status">AI 분석 중</span>
+        </div>
+
+        <div class="analysis-card">
+            <h3>방금 장바구니에 담은 물건</h3>
+            <div class="comparison-item">
+                <div class="item-img">🎧</div>
+                <div>
+                    <div style="font-weight: bold; font-size: 14px;">신규 헤드셋</div>
+                    <div style="font-size: 12px; color: #a4b0be;">유사도 82% (중복 소유 가능성)</div>
+                </div>
+            </div>
+            <div class="similarity-bar">
+                <div class="similarity-fill"></div>
+            </div>
+            <p style="font-size: 12px; color: #747d8c; margin-top: 10px;">
+                * 집에 있는 '보스 헤드셋'과 용도가 거의 일치합니다. AI는 이 소비를 <b>'충동적 지출'</b>로 분류했습니다.
+            </p>
+        </div>
+
+        <div class="budget-tracker">
+            <div class="budget-info">
+                <span>4월 목표 저축액</span>
+                <span>92% 사용됨</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar"></div>
+            </div>
+            <div class="warning-text">
+                🚨 이 결제 후, 저축 목표치까지 남은 금액은 ₩4,500입니다.
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-cancel" onclick="alert('현명한 선택입니다! 32만원을 절약하셨습니다.')">결제 취소하기</button>
+            <button class="btn btn-buy" onclick="confirm('정말 필요한 물건인가요? 다시 한번 생각해보세요.')">그래도 결제</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
+"""
+
+# 파일 저장
+file_path = "spend_breaker_prototype.html"
+with open(file_path, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print(f"파일이 성공적으로 생성되었습니다: {file_path}")
+               
+
+    
+                
+                
