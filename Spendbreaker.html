@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spend Breaker V5 - 통합 가계부 모드</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --primary-color: #ff4757;
+            --secondary-color: #2f3542;
+            --success-color: #2ed573;
+            --info-color: #1e90ff;
+            --white: #ffffff;
+            --gray: #ced4da;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background-color: #222;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh;
+        }
+
+        .phone-container {
+            width: 360px; height: 740px;
+            background: var(--bg-color);
+            border: 10px solid #111;
+            border-radius: 45px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+
+        .screen { display: none; padding: 20px; height: 100%; box-sizing: border-box; overflow-y: auto; flex-direction: column; }
+        .active { display: flex; }
+
+        h2 { font-size: 20px; margin-bottom: 15px; color: var(--secondary-color); }
+
+        .card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        /* 입력 폼 스타일 */
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; }
+        .input-group input, .input-group select {
+            width: 100%; padding: 12px; border: 1px solid var(--gray);
+            border-radius: 10px; box-sizing: border-box; font-size: 14px;
+        }
+
+        /* 그래프 스타일 */
+        .chart-row { display: flex; align-items: flex-end; justify-content: space-between; height: 60px; margin-top: 10px; }
+        .bar { width: 12px; background: var(--info-color); border-radius: 6px; }
+
+        /* 하단 플로팅 버튼 */
+        .fab {
+            position: absolute; bottom: 30px; right: 30px;
+            width: 60px; height: 60px; background: var(--secondary-color);
+            color: white; border-radius: 50%; display: flex;
+            justify-content: center; align-items: center;
+            font-size: 30px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s; z-index: 10;
+        }
+        .fab:active { transform: scale(0.9); }
+
+        /* 버튼 */
+        .btn {
+            width: 100%; padding: 16px; border-radius: 15px; border: none;
+            font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px;
+        }
+        .btn-dark { background: var(--secondary-color); color: white; }
+        .btn-light { background: #eee; color: #333; }
+        
+        .status-bar { height: 30px; padding: 5px 25px; display: flex; justify-content: space-between; font-size: 12px; color: #999; }
+    </style>
+</head>
+<body>
+
+<div class="phone-container">
+    <div class="status-bar">
+        <span>16:50</span>
+        <span>5G 📶 🔋</span>
+    </div>
+
+    <div id="home-screen" class="screen active">
+        <h2>소비 대시보드 📈</h2>
+        
+        <div class="card">
+            <h3>주간 지출 흐름</h3>
+            <div class="chart-row">
+                <div class="bar" style="height: 40%;"></div>
+                <div class="bar" style="height: 70%;"></div>
+                <div class="bar" style="height: 20%;"></div>
+                <div class="bar" style="height: 90%; background: var(--primary-color);"></div>
+                <div class="bar" style="height: 50%;"></div>
+                <div class="bar" style="height: 30%;"></div>
+                <div class="bar" style="height: 60%;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>카테고리 비율</h3>
+            <div style="font-size: 13px;">
+                <p>🍔 식비: <span style="color:orange">45%</span></p>
+                <p>🛍️ 쇼핑: <span style="color:blue">30%</span></p>
+                <p>🚕 교통: <span style="color:purple">25%</span></p>
+            </div>
+        </div>
+
+        <button class="btn btn-dark" style="margin-top: auto;" onclick="showScreen('analysis-screen')">쇼핑몰 결제 테스트</button>
+        
+        <div class="fab" onclick="showScreen('write-screen')">+</div>
+    </div>
+
+    <div id="write-screen" class="screen">
+        <h2>지출 내역 작성 📝</h2>
+        <div class="card">
+            <div class="input-group">
+                <label>항목명</label>
+                <input type="text" id="item-name" placeholder="예: 점심 식사">
+            </div>
+            <div class="input-group">
+                <label>금액</label>
+                <input type="number" id="item-price" placeholder="0">
+            </div>
+            <div class="input-group">
+                <label>카테고리</label>
+                <select id="item-cat">
+                    <option>식비</option>
+                    <option>쇼핑</option>
+                    <option>교통</option>
+                    <option>취미</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="margin-top: auto;">
+            <button class="btn btn-dark" onclick="saveRecord()">기록 저장하기</button>
+            <button class="btn btn-light" onclick="showScreen('home-screen')">취소</button>
+        </div>
+    </div>
+
+    <div id="analysis-screen" class="screen">
+        <h2 style="color: var(--primary-color);">AI 지출 브레이커 🛡️</h2>
+        <div class="card" style="border-left: 5px solid var(--primary-color);">
+            <p><strong>시뮬레이션 항목:</strong> 무선 헤드셋</p>
+            <p><strong>가격:</strong> 320,000원</p>
+            <hr>
+            <p style="font-size: 13px;">❌ <strong>경고 이유:</strong> 현재 '쇼핑' 카테고리 예산의 80%를 이미 사용했습니다. 이 지출은 위험합니다!</p>
+        </div>
+        <div style="margin-top: auto;">
+            <button class="btn btn-light" onclick="goHome('절약 성공! 대시보드에 기록됩니다.')">안 사고 아끼기</button>
+            <button class="btn btn-dark" onclick="confirmPay()">위험 감수하고 결제</button>
+        </div>
+    </div>
+
+    <div id="payment-screen" class="screen" style="text-align: center;">
+        <div style="font-size: 60px; margin-top: 60px;">✅</div>
+        <h2>결제가 완료되었습니다</h2>
+        <div class="card" style="text-align: left;">
+            <p>사용 금액: 320,000원</p>
+            <p style="color: var(--primary-color); font-weight: bold;">잔액 부족 주의!</p>
+        </div>
+        <button class="btn btn-dark" style="margin-top: auto;" onclick="showScreen('home-screen')">확인 (메인으로)</button>
+    </div>
+</div>
+
+<script>
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function goHome(msg) {
+        alert(msg);
+        showScreen('home-screen');
+    }
+
+    function saveRecord() {
+        const name = document.getElementById('item-name').value;
+        const price = document.getElementById('item-price').value;
+        if(!name || !price) {
+            alert("내용을 입력해주세요!");
+            return;
+        }
+        alert(name + " 내역이 가계부에 저장되었습니다.");
+        document.getElementById('item-name').value = "";
+        document.getElementById('item-price').value = "";
+        showScreen('home-screen');
+    }
+
+    function confirmPay() {
+        if(confirm("정말 결제하시겠습니까? 지출 흐름에 큰 타격을 줍니다.")) {
+            showScreen('payment-screen');
+        }
+    }
+</script>
+
+</body>
+</html>
