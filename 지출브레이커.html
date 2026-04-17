@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spend Breaker V4 - 지출 시각화 강화</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --primary-color: #ff4757;
+            --secondary-color: #2f3542;
+            --success-color: #2ed573;
+            --info-color: #1e90ff;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background-color: #333;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh;
+        }
+
+        .phone-container {
+            width: 360px; height: 740px;
+            background: var(--bg-color);
+            border: 10px solid #222;
+            border-radius: 45px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+
+        .screen { display: none; padding: 20px; height: 100%; box-sizing: border-box; overflow-y: auto; flex-direction: column; }
+        .active { display: flex; }
+
+        h2 { font-size: 20px; margin-bottom: 15px; color: var(--secondary-color); }
+        h3 { font-size: 16px; margin: 10px 0; }
+
+        .card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+
+        /* [그래프 1] 시간별 지출 추이 (라인 차트 느낌) */
+        .line-chart {
+            display: flex; align-items: flex-end; justify-content: space-between;
+            height: 80px; padding: 10px 5px; border-bottom: 1px solid #eee;
+        }
+        .line-point { width: 10px; background: var(--info-color); border-radius: 5px; transition: height 0.5s; }
+
+        /* [그래프 2] 항목별 지출 비율 (막대 형태) */
+        .category-item { margin-bottom: 10px; }
+        .category-info { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+        .progress-bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; }
+
+        /* 버튼 */
+        .btn {
+            width: 100%; padding: 16px; border-radius: 15px; border: none;
+            font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 8px;
+        }
+        .btn-dark { background: var(--secondary-color); color: white; }
+        .btn-danger { background: var(--primary-color); color: white; }
+        .btn-light { background: #dfe4ea; color: #57606f; }
+
+        .status-bar { height: 30px; padding: 5px 25px; display: flex; justify-content: space-between; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="phone-container">
+    <div class="status-bar">
+        <span>16:45</span>
+        <span>SKT 🔋</span>
+    </div>
+
+    <div id="home-screen" class="screen active">
+        <h2>소비 리포트 📊</h2>
+        
+        <div class="card">
+            <h3>내 지출 추이 (최근 7일)</h3>
+            <div class="line-chart">
+                <div class="line-point" style="height: 30%;"></div>
+                <div class="line-point" style="height: 50%;"></div>
+                <div class="line-point" style="height: 40%;"></div>
+                <div class="line-point" style="height: 85%; background: var(--primary-color);"></div>
+                <div class="line-point" style="height: 45%;"></div>
+                <div class="line-point" style="height: 60%;"></div>
+                <div class="line-point" style="height: 20%;"></div>
+            </div>
+            <p style="font-size: 11px; color: #999; text-align: center; margin-top: 5px;">월 화 수 목 금 토 일</p>
+        </div>
+
+        <div class="card">
+            <h3>항목별 지출 비율</h3>
+            <div class="category-item">
+                <div class="category-info"><span>식비</span><span>42%</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 42%; background: #ff9f43;"></div></div>
+            </div>
+            <div class="category-item">
+                <div class="category-info"><span>쇼핑</span><span>35%</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 35%; background: #54a0ff;"></div></div>
+            </div>
+            <div class="category-item">
+                <div class="category-info"><span>교통</span><span>13%</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 13%; background: #5f27cd;"></div></div>
+            </div>
+        </div>
+
+        <button class="btn btn-dark" style="margin-top: auto;" onclick="showScreen('analysis-screen')">쇼핑몰 결제 시뮬레이션</button>
+    </div>
+
+    <div id="analysis-screen" class="screen">
+        <h2 style="color: var(--primary-color);">잠깐! 생각해보셨나요? 🧐</h2>
+        <div class="card" style="border: 1px solid var(--primary-color);">
+            <p><strong>결제 항목:</strong> 무선 헤드셋</p>
+            <p><strong>가격:</strong> 320,000원</p>
+            <hr>
+            <p style="font-size: 13px; color: #e84118;">⚠️ <strong>경고 이유:</strong><br>
+            1. <strong>예산 초과:</strong> '쇼핑' 항목 한도를 120% 초과하게 됩니다.<br>
+            2. <strong>중복 소유:</strong> 현재 보유한 '보스 헤드셋'과 용도가 겹칩니다.</p>
+        </div>
+        
+        <div style="margin-top: auto;">
+            <button class="btn btn-light" onclick="goHome('잘 하셨어요! 320,000원이 세이브되었습니다.')">안 사고 절약할게요</button>
+            <button class="btn btn-danger" onclick="confirmPurchase()">그래도 결제할래요</button>
+        </div>
+    </div>
+
+    <div id="payment-screen" class="screen" style="text-align: center;">
+        <div style="font-size: 60px; margin-top: 60px;">💳</div>
+        <h2>결제가 완료되었습니다</h2>
+        <div class="card" style="text-align: left;">
+            <p>사용 금액: 320,000원</p>
+            <p style="color: var(--primary-color);">잔액: 130,000원</p>
+        </div>
+        <p style="font-size: 13px; color: #888;">지출 흐름 데이터에 반영되었습니다.</p>
+        
+        <button class="btn btn-dark" style="margin-top: auto;" onclick="showScreen('home-screen')">확인 (메인으로 돌아가기)</button>
+    </div>
+</div>
+
+<script>
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function goHome(msg) {
+        alert(msg);
+        showScreen('home-screen');
+    }
+
+    function confirmPurchase() {
+        if(confirm("AI가 반대하는 지출입니다. 정말 진행할까요?")) {
+            showScreen('payment-screen');
+        }
+    }
+</script>
+
+</body>
+</html>
