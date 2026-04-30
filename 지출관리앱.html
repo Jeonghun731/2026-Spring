@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Spend-Guard 가계부</title>
+    <!-- Chart.js 라이브러리 로드 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --danger: #e74c3c;
+            --success: #2ecc71;
+            --bg: #f5f7fa;
+        }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        
+        /* 메인 대시보드 */
+        .dashboard { background: #333; color: white; padding: 20px; border-radius: 15px; margin-bottom: 25px; }
+        .dashboard h2 { margin: 0; font-size: 1.2rem; opacity: 0.8; }
+        .total-amount { font-size: 2rem; font-weight: bold; margin: 10px 0; }
+        .sub-info { display: flex; justify-content: space-between; border-top: 1px solid #555; pt: 10px; }
+
+        /* 그래프 영역 */
+        .chart-container { margin-bottom: 30px; position: relative; }
+        .tab-menu { display: flex; gap: 10px; margin-bottom: 10px; }
+        .tab-menu button { border: none; background: #ddd; padding: 5px 12px; border-radius: 20px; cursor: pointer; }
+        .tab-menu button.active { background: var(--primary); color: white; }
+
+        /* 입력 폼 */
+        .input-group { display: flex; flex-direction: column; gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 12px; }
+        input, select { padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        button.add-btn { padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        /* 내역 리스트 */
+        .history-list { margin-top: 25px; }
+        .history-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; }
+        .history-item span.price { font-weight: bold; color: var(--danger); }
+    </style>
+</head>
+<body>
+
+<div class="container" id="mainHome">
+    <!-- 메인 대시보드 -->
+    <div class="dashboard">
+        <h2>총 자산</h2>
+        <div class="total-amount" id="myAssets">10,000,000원</div>
+        <div class="sub-info">
+            <span>이번 달 총 지출:</span>
+            <span id="totalSpend">0원</span>
+        </div>
+    </div>
+
+    <!-- 그래프 섹션 -->
+    <div class="chart-container">
+        <div class="tab-menu">
+            <button onclick="updateChart('day')" id="dayBtn" class="active">일별</button>
+            <button onclick="updateChart('month')" id="monthBtn">월별</button>
+        </div>
+        <canvas id="spendingChart"></canvas>
+    </div>
+
+    <!-- 지출 입력 폼 -->
+    <div class="input-group">
+        <h3>지출 내역 추가</h3>
+        <input type="text" id="itemName" placeholder="구매하려는 물건 명칭">
+        <input type="number" id="itemPrice" placeholder="가격 입력">
+        <select id="itemCategory">
+            <option value="식비">식비</option>
+            <option value="생활용품">생활용품</option>
+            <option value="전자제품">전자제품</option>
+            <option value="기타">기타</option>
+        </select>
+        <button class="add-btn" onclick="handlePurchase()">구매하기</button>
+    </div>
+
+    <!-- 최근 내역 -->
+    <div class="history-list">
+        <h3>최근 지출 내역</h3>
+        <div id="historyItems">
+            <!-- 내역이 여기에 추가됨 -->
+        </div>
+    </div>
+</div>
+
+<script>
+    let myAssets = 10000000;
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+    let chartInstance = null;
+
+    // --- [1. 우리 집 물건 API 확인 섹션] ---
+    async function checkHomeInventoryAPI(itemName) {
+        // 실제 API 연동 시 fetch 사용 예시:
+        // const response = await fetch(`https://api.yourhome.com/items?name=${itemName}`);
+        // const data = await response.json();
+        
+        // 시뮬레이션을 위한 데이터: 내역에 있는 물건은 우리 집에 있는 것으로 간주
+        const homeItems = transactions.map(t => t.name);
+        return homeItems.includes(itemName);
+    }
+
+    // --- [2. 구매 핸들러 (AI 판단 로직)] ---
+    async function handlePurchase() {
+        const name = document.getElementById('itemName').value;
+        const price = parseInt(document.getElementById('itemPrice').value);
+        const category = document.getElementById('itemCategory').value;
+
+        if(!name || !price) { alert("항목을 입력해주세요!"); return; }
+
+        // AI가 우리 집 물건인지 파악 (API 호출)
+        const isAlreadyInHome = await checkHomeInventoryAPI(name);
+
+        if(isAlreadyInHome) {
+            const reconfirm = confirm(`⚠️ AI 분석: [${name}]은(는) 이미 집에 있는 물건입니다. 정말 또 구매하시겠습니까?`);
+            if(!reconfirm) {
+                // 안 사기로 하면 홈 화면으로 리셋 (입력칸 초기화)
+                resetForm();
+                alert("구매를 취소하고 홈으로 돌아갑니다.");
+                return;
+            }
+        }
+
+        // 결제 진행 및 데이터 등록
+        addTransaction(name, price, category);
+        resetForm();
+    }
+
+    // --- [3. 가계부 핵심 기능] ---
+    function addTransaction(name, price, category) {
+        const newTransaction = {
+            id: Date.now(),
+            name,
+            price,
+            category,
+            date: new Date().toISOString().split('T')[0],
+            month: new Date().toISOString().slice(0, 7)
+        };
+
+        transactions.push(newTransaction);
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        renderAll();
+    }
+
+    function renderAll() {
+        // 자산 및 지출 업데이트
+        const total = transactions.reduce((sum, t) => sum + t.price, 0);
+        document.getElementById('totalSpend').innerText = total.toLocaleString() + '원';
+        document.getElementById('myAssets').innerText = (myAssets - total).toLocaleString() + '원';
+
+        // 내역 리스트 업데이트
+        const historyDiv = document.getElementById('historyItems');
+        historyDiv.innerHTML = transactions.slice().reverse().map(t => `
+            <div class="history-item">
+                <span>${t.name} (${t.date})</span>
+                <span class="price">-${t.price.toLocaleString()}원</span>
+            </div>
+        `).join('');
+
+        updateChart('day');
+    }
+
+    function resetForm() {
+        document.getElementById('itemName').value = '';
+        document.getElementById('itemPrice').value = '';
+    }
+
+    // --- [4. 그래프 구현 섹션 (Chart.js)] ---
+    function updateChart(type) {
+        const ctx = document.getElementById('spendingChart').getContext('2d');
+        const dataMap = {};
+        
+        // 데이터 집계
+        transactions.forEach(t => {
+            const key = (type === 'day') ? t.date : t.month;
+            dataMap[key] = (dataMap[key] || 0) + t.price;
+        });
+
+        const labels = Object.keys(dataMap).sort();
+        const values = labels.map(l => dataMap[l]);
+
+        if(chartInstance) chartInstance.destroy();
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: type === 'day' ? '일별 지출' : '월별 지출',
+                    data: values,
+                    borderColor: '#4a90e2',
+                    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // 탭 스타일 변경
+        document.getElementById('dayBtn').className = type === 'day' ? 'active' : '';
+        document.getElementById('monthBtn').className = type === 'month' ? 'active' : '';
+    }
+
+    // 초기 실행
+    renderAll();
+</script>
+
+</body>
+</html>
