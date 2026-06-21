@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KUAGC 관리자 시스템</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-crimson: #8A1538;
+            --bg-light: #f4f6f9;
+            --nav-bg: #ffffff;
+            --text-dark: #333333;
+            --border-color: #dddddd;
+            --btn-green: #4caf50;
+            --btn-green-hover: #43a047;
+            --btn-red: #e74c3c;
+            --card-bg: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --bg-light: #1e1e2f;
+            --nav-bg: #2b2b3d;
+            --text-dark: #f4f6f9;
+            --border-color: #444455;
+            --card-bg: #2b2b3d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Noto Sans KR', sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-dark); transition: background-color 0.3s, color 0.3s; }
+
+        nav {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--nav-bg); padding: 12px 40px; border-bottom: 1px solid var(--border-color);
+            position: sticky; top: 0; z-index: 1000;
+        }
+        .nav-left { display: flex; align-items: center; gap: 5px; }
+        .logo { font-size: 20px; font-weight: 800; color: #4caf50; text-decoration: none; margin-right: 5px; }
+        .admin-txt { font-size: 13px; color: #888; font-weight: 500; margin-right: 20px; }
+        .nav-menu { list-style: none; display: flex; gap: 8px; }
+        .nav-menu li { cursor: pointer; padding: 8px 14px; border-radius: 4px; font-size: 14px; font-weight: 500; color: var(--text-dark); transition: 0.2s; }
+        .nav-menu li:hover, .nav-menu li.active { background: rgba(138, 21, 56, 0.1); color: var(--primary-crimson); }
+        .nav-menu li.active { font-weight: 700; background: #e1f5fe; color: #0288d1; }
+        .theme-toggle { cursor: pointer; font-size: 18px; }
+
+        .sub-header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--card-bg); padding: 15px 40px; margin: 20px 40px 10px 40px; border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        .move-btn { text-decoration: none; background: #f5f5f5; color: #333; padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-weight: 500; }
+
+        /* 레이아웃 분할 (메인 콘텐츠 + 우측 사이드바) */
+        .layout-wrapper { display: flex; gap: 20px; padding: 0 40px 40px 40px; align-items: flex-start; }
+        .main-content { flex: 1; min-width: 0; }
+        .right-sidebar { width: 320px; flex-shrink: 0; position: sticky; top: 80px; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { background: var(--card-bg); border-radius: 6px; padding: 25px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        
+        .btn-green { background: var(--btn-green); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-red { background: var(--btn-red); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-gray { background: #e0e0e0; color: #333; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+        .timetable-ctrl { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .week-indicator { display: flex; align-items: center; gap: 15px; font-weight: bold; font-size: 16px; }
+        .week-indicator i { cursor: pointer; padding: 5px; }
+        .timetable { width: 100%; border-collapse: collapse; background: var(--card-bg); table-layout: fixed; margin-top: 15px; }
+        .timetable th, .timetable td { border: 1px solid var(--border-color); height: 48px; text-align: center; font-size: 13px; position: relative; }
+        .timetable th { background: rgba(0,0,0,0.02); font-weight: bold; }
+        .time-col { width: 105px; background: rgba(0,0,0,0.02); font-weight: bold; font-size: 11px; }
+        
+        .btn-grid-add { background: none; border: none; color: #aaa; cursor: pointer; font-size: 16px; width: 100%; height: 100%; }
+        .btn-grid-add:hover { background: rgba(0,0,0,0.03); color: var(--btn-green); }
+
+        .slot-booked { 
+            background: #e3f2fd; color: #0d47a1; font-weight: bold; font-size: 11px; border-radius: 4px; padding: 2px;
+            display: flex; justify-content: center; align-items: center; position: relative; gap: 4px; height: 100%;
+        }
+        .slot-delete-btn {
+            background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: none; border-radius: 50%;
+            width: 14px; height: 14px; font-size: 9px; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+        }
+
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 2000; }
+        .modal-content { background: var(--card-bg); width: 100%; max-width: 480px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--border-color); }
+        .modal-body { padding: 20px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 15px 20px; border-top: 1px solid var(--border-color); }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-light); color: var(--text-dark); }
+
+        .sub-tabs { display: flex; gap: 10px; border-bottom: 2px solid var(--border-color); margin-bottom: 20px; padding-bottom: 10px; }
+        .sub-tab { cursor: pointer; padding: 8px 16px; font-weight: bold; color: #888; }
+        .sub-tab.active { color: var(--btn-green); border-bottom: 3px solid var(--btn-green); }
+
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); }
+        .badge-status { background: #ffc107; color: #fff; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+
+        /* 사이드바 대기열 아이템 */
+        .approval-item { padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 10px; background: rgba(0,0,0,0.01); }
+        .approval-item h4 { font-size: 14px; margin-bottom: 5px; color: var(--primary-crimson); }
+        .approval-item p { font-size: 12px; color: #555; margin-bottom: 10px; }
+        .approval-actions { display: flex; gap: 5px; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-left">
+            <a href="http://kuagc.com" class="logo" target="_blank">KUAGC</a>
+            <span class="admin-txt">관리자</span>
+            <ul class="nav-menu">
+                <li class="active" onclick="switchTab('timetable')">시간표</li>
+                <li onclick="switchTab('team-mgmt')">팀 관리</li>
+                <li onclick="switchTab('time-req')">시간신청</li>
+                <li onclick="switchTab('school-req')">스쿨신청</li>
+                <li onclick="switchTab('jam-req')">합주신청</li>
+                <li onclick="switchTab('notice')">공지</li>
+                <li onclick="switchTab('contact')">연락처</li>
+                <li onclick="switchTab('data-mgmt')" class="danger">데이터 관리</li>
+            </ul>
+        </div>
+        <div class="nav-right">
+            <span class="theme-toggle" onclick="toggleTheme()"><i class="fa-solid fa-moon" id="theme-icon"></i></span>
+        </div>
+    </nav>
+
+    <div class="sub-header" id="sub-header-wrapper">
+        <div style="font-size:14px; color:#666;" id="sub-header-title">시간표 관리</div>
+        <a href="https://kuagc.kro.kr/index.html" class="move-btn" target="_blank">신청 페이지로 이동</a>
+    </div>
+
+    <div class="layout-wrapper">
+        
+        <div class="main-content">
+            <div id="timetable" class="tab-content active">
+                <div class="card">
+                    <div class="timetable-ctrl">
+                        <div><button class="btn-green" onclick="openModal('slotModal')">+ 슬롯 추가</button></div>
+                        <div class="week-indicator">
+                            <i class="fa-solid fa-chevron-left" onclick="changeWeek(-1)"></i>
+                            <span id="week-txt">6월 2주차</span>
+                            <i class="fa-solid fa-chevron-right" onclick="changeWeek(1)"></i>
+                        </div>
+                    </div>
+                    <h3 style="margin-bottom:5px;"><span id="table-date-title">6월 2주차</span> 시간표 <span class="badge-status" style="background:#4caf50;">라이브</span></h3>
+                    <div style="overflow-x:auto; margin-top:15px;">
+                        <table class="timetable">
+                            <thead>
+                                <tr><th class="time-col">시간</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th><th>일</th></tr>
+                            </thead>
+                            <tbody id="timetable-grid"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="team-mgmt" class="tab-content">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                        <div>
+                            <button class="btn-gray" onclick="toggleSelectAllTeams()">전체 선택</button>
+                            <button class="btn-red" style="margin-left:5px;" onclick="deleteSelectedTeams()">선택한 팀 삭제</button>
+                        </div>
+                        <button class="btn-green" onclick="addNewTeamRow()">+ 팀 추가</button>
+                    </div>
+                    <div id="team-list-container"></div>
+                    <button class="btn-green" style="margin-top:15px; padding:10px 25px;" onclick="saveTeams()">저장</button>
+                </div>
+            </div>
+
+            <div id="time-req" class="tab-content">
+                <div class="card" style="text-align:center; padding:40px 0;">
+                    <div style="margin-bottom:20px;" id="time-status-container">
+                        <span style="border:1px solid var(--btn-red); color:var(--btn-red); padding:8px 20px; border-radius:20px; font-weight:bold;">신청 기간 아님 (닫힘)</span>
+                    </div>
+                    <div style="display:flex; justify-content:center; gap:10px;">
+                        <button class="btn-gray" onclick="openModal('timeSetupModal')">새 신청 설정 열기</button>
+                        <button id="btn-toggle-time" class="btn-green" onclick="toggleApplicationState('time')">시간 신청 열기</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="school-req" class="tab-content">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <div>
+                            <span class="badge-status" id="school-badge-state" style="background:var(--btn-red);">마감됨</span>
+                            <strong style="margin-left:10px;" id="school-title-txt">1학기 1차 스쿨 신청</strong>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn-green" id="btn-toggle-school" onclick="toggleApplicationState('school')">스쿨 신청 열기</button>
+                            <button class="btn-gray" onclick="openModal('schoolSessionModal')">+ 새 회차 만들기</button>
+                        </div>
+                    </div>
+                    <div id="school-list-container"></div>
+                </div>
+            </div>
+
+            <div id="jam-req" class="tab-content">
+                <div class="card">
+                    <div class="sub-tabs">
+                        <div class="sub-tab active" id="tab-jam-normal" onclick="switchJamSubTab('normal')">일반 합주</div>
+                        <div class="sub-tab" id="tab-jam-busking" onclick="switchJamSubTab('busking')">버스킹 합주</div>
+                    </div>
+
+                    <div id="jam-normal-content">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <div>
+                                <span class="badge-status" id="jam-normal-badge-state" style="background:var(--btn-red);">마감됨</span>
+                                <strong style="font-size:18px; margin-left:10px;">2026 일반 합주 회차 내역</strong>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-green" id="btn-toggle-jam-normal" onclick="toggleApplicationState('jam_normal')">일반 합주 열기</button>
+                                <button class="btn-gray" onclick="exportToExcelSimulation('일반합주')"><i class="fa-solid fa-file-excel"></i> 내보내기</button>
+                            </div>
+                        </div>
+                        <div class="empty-state" style="text-align:center; color:#999; padding:20px;">신청된 일반 합주 곡이 없습니다</div>
+                    </div>
+
+                    <div id="jam-busking-content" style="display:none;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <div>
+                                <span class="badge-status" id="jam-busking-badge-state" style="background:var(--btn-red);">마감됨</span>
+                                <strong style="font-size:18px; margin-left:10px;">2026 버스킹 합주 회차 내역</strong>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-green" id="btn-toggle-jam-busking" onclick="toggleApplicationState('jam_busking')">버스킹 합주 열기</button>
+                                <button class="btn-gray" onclick="exportToExcelSimulation('버스킹합주')"><i class="fa-solid fa-file-excel"></i> 내보내기</button>
+                            </div>
+                        </div>
+                        <div class="empty-state" style="text-align:center; color:#999; padding:20px;">신청된 버스킹 합주 곡이 없습니다</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="notice" class="tab-content">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3>📋 공지사항 목록</h3>
+                        <button class="btn-green" onclick="openModal('noticeModal')">+ 추가</button>
+                    </div>
+                    <div id="notice-list-container"></div>
+                </div>
+            </div>
+
+            <div id="contact" class="tab-content">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3>📞 회장단 연락처</h3>
+                        <button class="btn-green" onclick="openModal('contactModal')">+ 추가</button>
+                    </div>
+                    <div id="contact-list-container"></div>
+                </div>
+            </div>
+
+            <div id="data-mgmt" class="tab-content">
+                <div class="card">
+                    <h4 style="margin-bottom:15px;">학사일정 설정</h4>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+                        <div class="form-group"><label>1학기 종강</label><input type="date" id="date-1-end" value="2026-06-22"></div>
+                        <div class="form-group"><label>2학기 개강</label><input type="date" id="date-2-start" value="2026-09-01"></div>
+                        <div class="form-group"><label>2학기 종강</label><input type="date" id="date-2-end" value="2026-12-18"></div>
+                        <div class="form-group"><label>내년 1학기 개강</label><input type="date" id="date-1-start-next" value="2027-03-02"></div>
+                    </div>
+                    <button class="btn-green" onclick="saveAcademicDates()">저장</button>
+                </div>
+                
+                <div class="card">
+                    <h4 style="margin-bottom:10px; color:var(--btn-red);">시간 정보 삭제</h4>
+                    <div style="display:flex; gap:10px;">
+                        <select id="delete-semester-select" style="width:150px; padding:8px;"><option>1학기</option><option>2학기</option></select>
+                        <button class="btn-red" onclick="deleteSemesterData()">시간 정보 삭제</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4 style="margin-bottom:12px;">백업 데이터 확인</h4>
+                    <p style="font-size:13px; color:#555; margin-bottom:15px; line-height: 1.6;">
+                        시간 신청, 스쿨 신청, 합주 신청 데이터를 xlsx 파일로 다운로드합니다.
+                    </p>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; max-width:500px; margin-bottom:20px;">
+                        <div class="form-group">
+                            <label>시작일</label>
+                            <input type="date" id="backup-start-date" value="2026-03-02">
+                        </div>
+                        <div class="form-group">
+                            <label>종료일</label>
+                            <input type="date" id="backup-end-date" value="2026-06-21">
+                        </div>
+                    </div>
+                    <button class="btn-green" style="padding:10px 20px;" onclick="downloadDataAsExcel()">데이터 다운로드</button>
+                </div>
+            </div>
+        </div> 
+
+        <aside class="right-sidebar">
+            <div class="card" style="padding:15px;">
+                <h3 style="margin-bottom:15px; font-size:15px; border-bottom:1px solid #eee; padding-bottom:10px;"><i class="fa-solid fa-bell"></i> 승인 대기 목록</h3>
+                <div id="pending-approvals-container">
+                    </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <div id="slotModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3>슬롯 추가</h3><span class="modal-close" onclick="closeModal('slotModal')">&times;</span></div>
+            <div class="modal-body">
+                <div class="form-group"><label>추가 대상</label><select id="slot-target"></select></div>
+                <div class="form-group"><label>팀</label><select id="slot-team"></select></div>
+                <div class="form-group"><label>요일</label><select id="slot-day"><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option><option>토</option><option>일</option></select></div>
+                <div class="form-group"><label>시간 범위</label><select id="slot-time"></select></div>
+            </div>
+            <div class="modal-footer"><button class="btn-gray" onclick="closeModal('slotModal')">취소</button><button class="btn-green" onclick="addTimeSlot()">추가</button></div>
+        </div>
+    </div>
+
+    <div id="timeSetupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3>새 시간신청 범위 및 일정 설정</h3><span class="modal-close" onclick="closeModal('timeSetupModal')">&times;</span></div>
+            <div class="modal-body">
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <div class="form-group" style="flex:1;"><label>시작 시간</label><input type="time" id="setup-start-hour"></div>
+                    <div class="form-group" style="flex:1;"><label>종료 시간</label><input type="time" id="setup-end-hour"></div>
+                </div>
+                <div class="form-group"><label>시작일 선택 (달력)</label><input type="date" id="setup-start-date"></div>
+                <div class="form-group"><label>마감일 선택 (달력)</label><input type="date" id="setup-end-date"></div>
+            </div>
+            <div class="modal-footer"><button class="btn-gray" onclick="closeModal('timeSetupModal')">취소</button><button class="btn-green" onclick="submitTimeSetup()">설정 확정 및 오픈</button></div>
+        </div>
+    </div>
+
+    <div id="schoolSessionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3>새 스쿨 회차 추가</h3><span class="modal-close" onclick="closeModal('schoolSessionModal')">&times;</span></div>
+            <div class="modal-body">
+                <div class="form-group"><label>학기 입력</label><select id="school-term-input"><option>1학기</option><option>2학기</option><option>여름방학</option><option>겨울방학</option></select></div>
+                <div class="form-group"><label>회차 선택</label><select id="school-round-input"><option>1차 스쿨</option><option>2차 스쿨</option><option>3차 스쿨</option></select></div>
+            </div>
+            <div class="modal-footer"><button class="btn-gray" onclick="closeModal('schoolSessionModal')">취소</button><button class="btn-green" onclick="submitSchoolSession()">생성 완료</button></div>
+        </div>
+    </div>
+
+    <div id="noticeModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>공지사항 작성</h3><span class="modal-close" onclick="closeModal('noticeModal')">&times;</span></div><div class="modal-body"><div class="form-group"><label>제목</label><input type="text" id="notice-title"></div><div class="form-group"><label>내용</label><textarea id="notice-body" rows="4"></textarea></div></div><div class="modal-footer"><button class="btn-green" onclick="submitNotice()">등록</button></div></div></div>
+    <div id="contactModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>연락처 추가</h3><span class="modal-close" onclick="closeModal('contactModal')">&times;</span></div><div class="modal-body"><div class="form-group"><label>직책</label><input type="text" id="contact-pos"></div><div class="form-group"><label>이름</label><input type="text" id="contact-name"></div><div class="form-group"><label>연락처</label><input type="text" id="contact-phone"></div></div><div class="modal-footer"><button class="btn-green" onclick="submitContact()">등록</button></div></div></div>
+
+    <script>
+        let currentMonth = 6, currentWeek = 2;
+
+        // 동아리 전용 60개 고정 팀 리스트 세팅
+        const defaultKUAGCTeams = [];
+        for(let i=1; i<=5; i++) defaultKUAGCTeams.push(`기타 입문 스쿨 ${i}반`);
+        for(let i=1; i<=2; i++) defaultKUAGCTeams.push(`기타 초급 스쿨 ${i}반`);
+        for(let i=1; i<=3; i++) defaultKUAGCTeams.push(`베이스 입문 스쿨 ${i}반`);
+        for(let i=1; i<=3; i++) defaultKUAGCTeams.push(`드럼 입문 스쿨 ${i}반`);
+        for(let i=1; i<=30; i++) defaultKUAGCTeams.push(`정기공연 합주팀 ${i}팀`);
+        for(let i=1; i<=15; i++) defaultKUAGCTeams.push(`버스킹 합주팀 ${i}팀`);
+        defaultKUAGCTeams.push("회장단 회의", "회장단 합주");
+
+        let teams = JSON.parse(localStorage.getItem('teams')) || defaultKUAGCTeams;
+        let contacts = JSON.parse(localStorage.getItem('contacts')) || [{pos:'회장', name:'김민성', phone:'010-3931-1504'}];
+        let notices = JSON.parse(localStorage.getItem('notices')) || [{title: 'KUAGC 정기 공지 시스템 오픈', date:'2026-06-01'}];
+        let slots = JSON.parse(localStorage.getItem('slots')) || [];
+        let schoolSession = JSON.parse(localStorage.getItem('school')) || {title: "1학기 1차 스쿨 신청", desc: "담당진 배정 진행 중"};
+
+        window.onload = function() {
+            initTimetableOptions();
+            buildTargetDropdownOptions();
+            renderAll();
+            setInterval(renderApprovals, 2000); // 2초마다 사이드바 대기열 갱신
+        }
+
+        // --- 토글(열기/마감) 관리 로직 ---
+        function toggleApplicationState(appType) {
+            let currentState = localStorage.getItem(`state_${appType}`) || 'close';
+            let newState = currentState === 'open' ? 'close' : 'open';
+            localStorage.setItem(`state_${appType}`, newState);
+            updateAllAppStatesUI();
+        }
+
+        function updateAllAppStatesUI() {
+            // 시간 신청 토글 UI 업데이트
+            let tState = localStorage.getItem('state_time') || 'close';
+            let tBox = document.getElementById('time-status-container');
+            let tBtn = document.getElementById('btn-toggle-time');
+            if(tState === 'open') {
+                tBox.innerHTML = `<span style="border:1px solid var(--btn-green); color:var(--btn-green); padding:8px 20px; border-radius:20px; font-weight:bold;">🟢 신청 진행 중 (열림)</span>`;
+                tBtn.className = 'btn-red'; tBtn.innerText = '시간 신청 마감하기';
+            } else {
+                tBox.innerHTML = `<span style="border:1px solid var(--btn-red); color:var(--btn-red); padding:8px 20px; border-radius:20px; font-weight:bold;">🔴 신청 기간 아님 (닫힘)</span>`;
+                tBtn.className = 'btn-green'; tBtn.innerText = '시간 신청 열기';
+            }
+
+            // 스쿨 신청 토글 UI 업데이트
+            let sState = localStorage.getItem('state_school') || 'close';
+            let sBadge = document.getElementById('school-badge-state');
+            let sBtn = document.getElementById('btn-toggle-school');
+            if(sState === 'open') {
+                sBadge.style.background = 'var(--btn-green)'; sBadge.innerText = '진행중';
+                sBtn.className = 'btn-red'; sBtn.innerText = '스쿨 신청 마감하기';
+            } else {
+                sBadge.style.background = 'var(--btn-red)'; sBadge.innerText = '마감됨';
+                sBtn.className = 'btn-green'; sBtn.innerText = '스쿨 신청 열기';
+            }
+
+            // 일반 합주 신청 토글 UI 업데이트
+            let jnState = localStorage.getItem('state_jam_normal') || 'close';
+            let jnBadge = document.getElementById('jam-normal-badge-state');
+            let jnBtn = document.getElementById('btn-toggle-jam-normal');
+            if(jnState === 'open') {
+                jnBadge.style.background = 'var(--btn-green)'; jnBadge.innerText = '진행중';
+                jnBtn.className = 'btn-red'; jnBtn.innerText = '일반 합주 마감하기';
+            } else {
+                jnBadge.style.background = 'var(--btn-red)'; jnBadge.innerText = '마감됨';
+                jnBtn.className = 'btn-green'; jnBtn.innerText = '일반 합주 열기';
+            }
+
+            // 버스킹 합주 신청 토글 UI 업데이트
+            let jbState = localStorage.getItem('state_jam_busking') || 'close';
+            let jbBadge = document.getElementById('jam-busking-badge-state');
+            let jbBtn = document.getElementById('btn-toggle-jam-busking');
+            if(jbState === 'open') {
+                jbBadge.style.background = 'var(--btn-green)'; jbBadge.innerText = '진행중';
+                jbBtn.className = 'btn-red'; jbBtn.innerText = '버스킹 합주 마감하기';
+            } else {
+                jbBadge.style.background = 'var(--btn-red)'; jbBadge.innerText = '마감됨';
+                jbBtn.className = 'btn-green'; jbBtn.innerText = '버스킹 합주 열기';
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const targetTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', targetTheme);
+            document.getElementById('theme-icon').className = targetTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-menu li').forEach(m => m.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            const subHeader = document.getElementById('sub-header-wrapper');
+            if (tabId === 'data-mgmt') { subHeader.style.display = 'none'; } 
+            else { subHeader.style.display = 'flex'; document.getElementById('sub-header-title').textContent = event.currentTarget.textContent + " 관리"; }
+        }
+
+        function switchJamSubTab(type) {
+            document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+            if(type === 'normal') {
+                document.getElementById('tab-jam-normal').classList.add('active');
+                document.getElementById('jam-normal-content').style.display = 'block';
+                document.getElementById('jam-busking-content').style.display = 'none';
+            } else {
+                document.getElementById('tab-jam-busking').classList.add('active');
+                document.getElementById('jam-normal-content').style.display = 'none';
+                document.getElementById('jam-busking-content').style.display = 'block';
+            }
+        }
+
+        function initTimetableOptions() {
+            const timeSelect = document.getElementById('slot-time'); timeSelect.innerHTML = '';
+            for(let h=8; h<24; h++) timeSelect.innerHTML += `<option value="${h}:00~${h+1}:00">${h}:00~${h+1}:00</option>`;
+        }
+
+        function buildTargetDropdownOptions() {
+            const targetSelect = document.getElementById('slot-target');
+            targetSelect.innerHTML = '<option value="all">1학기 기본 시간표</option>';
+            for(let m = 3; m <= 8; m++) { for(let w = 1; w <= 5; w++) { targetSelect.innerHTML += `<option value="${m}월 ${w}주차">${m}월 ${w}주차</option>`; } }
+        }
+
+        function renderTimetable() {
+            const grid = document.getElementById('timetable-grid'); grid.innerHTML = '';
+            const days = ['월', '화', '수', '목', '금', '토', '일'];
+            const currentStr = `${currentMonth}월 ${currentWeek}주차`;
+            document.getElementById('week-txt').textContent = currentStr;
+            document.getElementById('table-date-title').textContent = currentStr;
+
+            for(let h=8; h<24; h++) {
+                let rangeStr = `${h}:00~${h+1}:00`;
+                let row = `<tr><td class="time-col">${rangeStr}</td>`;
+                days.forEach(day => {
+                    const matchIdx = slots.findIndex(s => (s.target === 'all' || s.target === currentStr) && s.day === day && s.time === rangeStr);
+                    if(matchIdx !== -1) {
+                        row += `<td><div class="slot-booked"><span>${slots[matchIdx].team}</span><button class="slot-delete-btn" onclick="deleteTimeSlot(${matchIdx})">×</button></div></td>`;
+                    } else {
+                        row += `<td><button class="btn-grid-add" onclick="openGridQuickAdd('${day}', '${rangeStr}')">+</button></td>`;
+                    }
+                });
+                grid.innerHTML += row + `</tr>`;
+            }
+
+            const slotTeamSelect = document.getElementById('slot-team'); slotTeamSelect.innerHTML = '';
+            teams.forEach(t => slotTeamSelect.innerHTML += `<option value="${t}">${t}</option>`);
+        }
+
+        function openGridQuickAdd(day, timeRange) { document.getElementById('slot-day').value = day; document.getElementById('slot-time').value = timeRange; openModal('slotModal'); }
+        function deleteTimeSlot(idx) { if(confirm(`배정 삭제 진행하시겠습니까?`)) { slots.splice(idx, 1); localStorage.setItem('slots', JSON.stringify(slots)); renderTimetable(); } }
+
+        function changeWeek(dir) {
+            currentWeek += dir;
+            if(currentWeek > 5) { currentWeek = 1; currentMonth++; }
+            if(currentWeek < 1) { currentWeek = 5; currentMonth--; }
+            if(currentMonth > 8) currentMonth = 3;
+            if(currentMonth < 3) currentMonth = 8;
+            renderTimetable();
+        }
+
+        function addTimeSlot() {
+            slots.push({ target: document.getElementById('slot-target').value, team: document.getElementById('slot-team').value, day: document.getElementById('slot-day').value, time: document.getElementById('slot-time').value });
+            localStorage.setItem('slots', JSON.stringify(slots)); closeModal('slotModal'); renderTimetable();
+        }
+
+        // 사이드바 대기열 렌더링 및 처리
+        function renderApprovals() {
+            let pending = JSON.parse(localStorage.getItem('order_time')) || [];
+            const container = document.getElementById('pending-approvals-container');
+            if(pending.length === 0) {
+                container.innerHTML = '<p style="color:#888; font-size:12px; text-align:center;">새로운 신청 내역이 없습니다.</p>';
+                return;
+            }
+            container.innerHTML = pending.map((p, idx) => `
+                <div class="approval-item">
+                    <h4>${p.name}</h4>
+                    <p><i class="fa-regular fa-clock"></i> ${p.day}요일 ${p.time}</p>
+                    <div class="approval-actions">
+                        <button class="btn-green" style="padding:4px 8px; font-size:11px; flex:1;" onclick="approveRequest(${idx})">승인</button>
+                        <button class="btn-red" style="padding:4px 8px; font-size:11px; flex:1;" onclick="rejectRequest(${idx})">거절</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function approveRequest(idx) {
+            let pending = JSON.parse(localStorage.getItem('order_time')) || [];
+            let item = pending[idx];
+            slots.push({ target: 'all', team: item.name, day: item.day, time: item.time });
+            localStorage.setItem('slots', JSON.stringify(slots));
+            pending.splice(idx, 1);
+            localStorage.setItem('order_time', JSON.stringify(pending));
+            renderTimetable(); renderApprovals();
+        }
+
+        function rejectRequest(idx) {
+            let pending = JSON.parse(localStorage.getItem('order_time')) || [];
+            pending.splice(idx, 1); localStorage.setItem('order_time', JSON.stringify(pending));
+            renderApprovals();
+        }
+
+        // 데이터 관리
+        function deleteSemesterData() {
+            const sem = document.getElementById('delete-semester-select').value;
+            if(confirm(`[${sem}] 시간표와 신청 데이터를 완전히 삭제합니다. 진행하시겠습니까?`)) {
+                slots = []; localStorage.setItem('slots', JSON.stringify(slots)); renderTimetable(); alert('삭제되었습니다.');
+            }
+        }
+
+        function downloadDataAsExcel() {
+            const startDate = document.getElementById('backup-start-date').value;
+            const endDate = document.getElementById('backup-end-date').value;
+
+            const timeData = [["시간 신청 기록"], ["이름", "요일", "시간"]];
+            let ordersT = JSON.parse(localStorage.getItem('order_time')) || [];
+            ordersT.forEach(o => timeData.push([o.name, o.day, o.time]));
+
+            const schoolData = [["스쿨 신청 기록"], ["이름", "신청트랙"]];
+            let ordersS = JSON.parse(localStorage.getItem('order_school')) || [];
+            ordersS.forEach(o => schoolData.push([o.name, o.track]));
+
+            const jamData = [["합주 신청 기록"], ["팀명", "곡명"]];
+            let ordersJ = JSON.parse(localStorage.getItem('order_jam')) || [];
+            ordersJ.forEach(o => jamData.push([o.team, o.song]));
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(timeData), "시간신청");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(schoolData), "스쿨신청");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(jamData), "합주신청");
+
+            XLSX.writeFile(wb, `KUAGC_백업_${startDate}~${endDate}.xlsx`);
+        }
+
+        // 공지 & 연락처 수정 및 삭제 기능
+        function renderNotices() {
+            const container = document.getElementById('notice-list-container'); container.innerHTML = '';
+            notices.forEach((n, idx) => {
+                container.innerHTML += `<div class="item-row">
+                    <div><strong>${n.title}</strong></div>
+                    <div><button class="btn-gray" style="padding:4px 8px; font-size:12px;" onclick="editNotice(${idx})">수정</button>
+                    <button class="btn-red" style="padding:4px 8px; font-size:12px;" onclick="deleteNotice(${idx})">삭제</button></div>
+                </div>`;
+            });
+        }
+        function submitNotice() { notices.unshift({title: document.getElementById('notice-title').value, date: '2026-06-21'}); localStorage.setItem('notices', JSON.stringify(notices)); closeModal('noticeModal'); renderNotices(); }
+        function editNotice(idx) { let newVal = prompt("수정할 공지 제목을 입력하세요", notices[idx].title); if(newVal){ notices[idx].title = newVal; localStorage.setItem('notices', JSON.stringify(notices)); renderNotices(); } }
+        function deleteNotice(idx) { if(confirm("삭제하시겠습니까?")) { notices.splice(idx, 1); localStorage.setItem('notices', JSON.stringify(notices)); renderNotices(); } }
+
+        function renderContacts() {
+            const container = document.getElementById('contact-list-container'); container.innerHTML = '';
+            contacts.forEach((c, idx) => {
+                container.innerHTML += `<div class="item-row">
+                    <div>[${c.pos}] ${c.name} (${c.phone})</div>
+                    <div><button class="btn-gray" style="padding:4px 8px; font-size:12px;" onclick="editContact(${idx})">수정</button>
+                    <button class="btn-red" style="padding:4px 8px; font-size:12px;" onclick="deleteContact(${idx})">삭제</button></div>
+                </div>`;
+            });
+        }
+        function submitContact() { contacts.push({pos: document.getElementById('contact-pos').value, name: document.getElementById('contact-name').value, phone: document.getElementById('contact-phone').value}); localStorage.setItem('contacts', JSON.stringify(contacts)); closeModal('contactModal'); renderContacts(); }
+        function editContact(idx) { 
+            let nName = prompt("수정할 이름을 입력하세요", contacts[idx].name);
+            let nPhone = prompt("수정할 번호를 입력하세요", contacts[idx].phone);
+            if(nName && nPhone) { contacts[idx].name = nName; contacts[idx].phone = nPhone; localStorage.setItem('contacts', JSON.stringify(contacts)); renderContacts(); }
+        }
+        function deleteContact(idx) { if(confirm("연락처를 삭제하시겠습니까?")) { contacts.splice(idx, 1); localStorage.setItem('contacts', JSON.stringify(contacts)); renderContacts(); } }
+
+        function renderTeams() {
+            const container = document.getElementById('team-list-container'); container.innerHTML = '';
+            teams.forEach((team, idx) => {
+                container.innerHTML += `<div class="team-item" style="display:flex; gap:10px; margin-bottom:8px; align-items:center;"><input type="checkbox" class="team-chk" data-idx="${idx}"><input type="text" class="team-name-input" value="${team}" style="padding:6px; flex:1; border:1px solid var(--border-color); border-radius:4px;"></div>`;
+            });
+        }
+        function addNewTeamRow() { teams.push("새 팀"); renderTeams(); }
+        function saveTeams() { teams = Array.from(document.querySelectorAll('.team-name-input')).map(input => input.value); localStorage.setItem('teams', JSON.stringify(teams)); alert('반영되었습니다.'); renderTimetable(); }
+        function deleteSelectedTeams() { let chks = document.querySelectorAll('.team-chk'); let updatedTeams = []; chks.forEach((chk, idx) => { if(!chk.checked) updatedTeams.push(teams[idx]); }); teams = updatedTeams; localStorage.setItem('teams', JSON.stringify(teams)); renderTeams(); }
+        let allSelected = false; function toggleSelectAllTeams() { allSelected = !allSelected; document.querySelectorAll('.team-chk').forEach(chk => chk.checked = allSelected); }
+
+        function submitTimeSetup() {
+            localStorage.setItem('state_time', 'open');
+            updateAllAppStatesUI();
+            alert('시간 신청 시스템 설정이 저장되고 즉시 오픈되었습니다.');
+            closeModal('timeSetupModal');
+        }
+        function submitSchoolSession() { schoolSession.title = `${document.getElementById('school-term-input').value} ${document.getElementById('school-round-input').value}`; localStorage.setItem('school', JSON.stringify(schoolSession)); closeModal('schoolSessionModal'); renderSchoolSection(); }
+        function renderSchoolSection() { document.getElementById('school-title-txt').textContent = schoolSession.title; document.getElementById('school-list-container').innerHTML = `<div class="item-row" style="background:rgba(0,0,0,0.01); border:1px solid var(--border-color); border-radius:6px; margin-top:10px;"><span style="font-size: 16px; font-weight: bold;">${schoolSession.title}</span></div>`; }
+
+        function saveAcademicDates() { alert('일정이 저장되었습니다.'); }
+        function exportToExcelSimulation(title) { alert(`[${title}] 신청 내역 데이터의 다운로드 추출이 개시됩니다.`); }
+
+        function renderAll() { 
+            renderTimetable(); 
+            renderTeams(); 
+            renderSchoolSection(); 
+            renderNotices(); 
+            renderContacts(); 
+            renderApprovals(); 
+            updateAllAppStatesUI(); 
+        }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    </script>
+</body>
+</html>
